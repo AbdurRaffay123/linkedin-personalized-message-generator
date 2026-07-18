@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "AI Sales Assistant",
+  "version": "0.1.0",
+  "description": "Turns a LinkedIn profile you're already viewing into a decision-grade research brief. Passive and user-triggered.",
+  "action": {
+    "default_title": "AI Sales Assistant",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": [
+    "http://localhost:8000/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://www.linkedin.com/in/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
