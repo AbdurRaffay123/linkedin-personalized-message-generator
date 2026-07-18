@@ -87,6 +87,53 @@ def capture(payload: CaptureIn, db: Session = Depends(get_db)) -> Prospect:
     return prospect
 
 
+@router.get("/prospects", response_model=list[ProspectOut])
+def list_prospects(db: Session = Depends(get_db)) -> list[Prospect]:
+    """Most-recent-first list for the dashboard (current dev user)."""
+    user = _dev_user(db)
+    return list(
+        db.scalars(
+            select(Prospect)
+            .where(Prospect.user_id == user.id)
+            .order_by(Prospect.captured_at.desc())
+        )
+    )
+
+
+@router.get("/prospects/{prospect_id}", response_model=ProspectOut)
+def get_prospect(prospect_id: int, db: Session = Depends(get_db)) -> Prospect:
+    prospect = db.get(Prospect, prospect_id)
+    if prospect is None:
+        raise HTTPException(404, "prospect not found")
+    return prospect
+
+
+@router.get("/prospects/{prospect_id}/analyses", response_model=list[AnalysisOut])
+def list_analyses(prospect_id: int, db: Session = Depends(get_db)) -> list[Analysis]:
+    if db.get(Prospect, prospect_id) is None:
+        raise HTTPException(404, "prospect not found")
+    return list(
+        db.scalars(
+            select(Analysis)
+            .where(Analysis.prospect_id == prospect_id)
+            .order_by(Analysis.created_at.desc())
+        )
+    )
+
+
+@router.get("/analyses/{analysis_id}/messages", response_model=list[MessageOut])
+def list_messages(analysis_id: int, db: Session = Depends(get_db)) -> list[Message]:
+    if db.get(Analysis, analysis_id) is None:
+        raise HTTPException(404, "analysis not found")
+    return list(
+        db.scalars(
+            select(Message)
+            .where(Message.analysis_id == analysis_id)
+            .order_by(Message.created_at.desc())
+        )
+    )
+
+
 @router.post(
     "/prospects/{prospect_id}/analyze",
     response_model=AnalyzeAccepted,

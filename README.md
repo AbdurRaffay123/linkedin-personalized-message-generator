@@ -16,12 +16,13 @@ a thin capture client, and message generation is the commoditized last mile.
 | **3. Intelligence engine** | Dual-LLM quarantine + evidence-linked brief + "should you reach out?" score | ✅ **Done & verified** |
 | **4. Extension (thin client)** | MV3 passive content script → capture → analyze → render brief + draft ([`extension/`](./extension)) | ✅ **Built** (selectors need live-LinkedIn tuning) |
 | **5. Message generation** | message_gen role (Claude Sonnet 5 in prod), tone/length/goal, human-in-the-loop draft | ✅ **Done & verified** |
-| 6. Dashboard | Next.js prospect list + brief view + message studio | ⏳ Next |
-| 7. Hardening | Rate limits, GDPR/retention, injection red-team, observability | ⏳ Planned |
+| **6. Dashboard** | Next.js prospect list + brief view (evidence links) + message studio ([`dashboard/`](./dashboard)) | ✅ **Done & verified** |
+| 7. Hardening | Rate limits, GDPR/retention, injection red-team, observability | ⏳ Next |
 
-The full backend loop — **capture → research → dual-LLM brief → grounded draft message** — runs
-end-to-end today on the keyless mock provider. Remaining work is the Chrome extension (Phase 4),
-the Next.js dashboard (Phase 6), and production hardening (Phase 7).
+The full loop — **capture → research → dual-LLM brief → grounded draft message** — runs
+end-to-end today on the keyless mock provider, across backend, extension, and dashboard.
+Only production hardening (Phase 7) remains: real auth, rate limits, GDPR/retention jobs,
+injection red-team, and observability.
 
 ## Architecture
 

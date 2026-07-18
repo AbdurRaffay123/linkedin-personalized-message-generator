@@ -32,6 +32,14 @@ class CaptureIn(BaseModel):
     posts: list[PostIn] = Field(default_factory=list)
 
 
+class CompanyOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    domain: str | None
+
+
 class ProspectOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -40,6 +48,7 @@ class ProspectOut(BaseModel):
     headline: str | None
     linkedin_url: str | None
     captured_at: datetime
+    company: CompanyOut | None = None
 
 
 class AnalysisOut(BaseModel):
