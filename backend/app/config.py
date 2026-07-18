@@ -30,10 +30,17 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./ai_sales_assistant.db"
 
     # --- LLM provider keys (all optional; the mock provider needs none) ---
+    # FREE options (no card): gemini_api_key (aistudio.google.com), groq_api_key
+    # (console.groq.com), openrouter_api_key (openrouter.ai), or Ollama (local).
     anthropic_api_key: str | None = Field(default=None)
     gemini_api_key: str | None = Field(default=None)
+    groq_api_key: str | None = Field(default=None)
+    openrouter_api_key: str | None = Field(default=None)
     deepseek_api_key: str | None = Field(default=None)
     ollama_base_url: str = "http://localhost:11434"
+    # Generic OpenAI-compatible endpoint (LM Studio, self-hosted, etc.).
+    openai_base_url: str | None = Field(default=None)
+    openai_api_key: str | None = Field(default=None)
 
     # --- Role -> model routing (see blueprint §4) ---
     # Provider is inferred from the model id prefix by the router.

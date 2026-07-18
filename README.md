@@ -126,14 +126,30 @@ curl -X POST localhost:8000/api/v1/prospects/1/analyze
 curl localhost:8000/api/v1/analyses/1
 ```
 
-## Going to real models
+## Going to real models — including 100% FREE options
 
-Set the keys in `.env` and point the role routes at a provider, e.g.:
+You do **not** need a paid API. The role-based router supports several
+free-of-charge providers; pick one, set its key in `.env`, and point the
+`MODEL_*` roles at it. No business-logic changes — the router resolves
+`provider:model` at call time.
+
+| Provider | Cost | Get a key | Example `MODEL_REASONING` |
+|---|---|---|---|
+| **Gemini** (recommended) | Free tier, no card | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | `gemini:gemini-2.0-flash` |
+| **Groq** | Free tier, no card | [console.groq.com](https://console.groq.com) | `groq:llama-3.3-70b-versatile` |
+| **OpenRouter** | Free `:free` models | [openrouter.ai](https://openrouter.ai) | `openrouter:meta-llama/llama-3.3-70b-instruct:free` |
+| **Ollama** | Free forever, local, offline | install [ollama.com](https://ollama.com), `ollama pull qwen2.5:7b` | `ollama:qwen2.5:7b` |
+| Anthropic | Paid | — | `anthropic:claude-sonnet-5` |
+
+Example `.env` for a fully free setup with Gemini:
 
 ```
-ANTHROPIC_API_KEY=sk-ant-...
-MODEL_REASONING=anthropic:claude-sonnet-5
-MODEL_MESSAGE_GEN=anthropic:claude-sonnet-5
+GEMINI_API_KEY=AIza...
+MODEL_EXTRACTION=gemini:gemini-2.0-flash-lite
+MODEL_REASONING=gemini:gemini-2.0-flash
+MODEL_MESSAGE_GEN=gemini:gemini-2.0-flash
 ```
 
-No business logic changes — the router resolves `provider:model` at call time.
+See `backend/.env.example` for copy-paste blocks for each provider. Extraction
+and structured briefs use JSON mode + validate-and-retry on these providers; the
+evidence-linking schema still guarantees no invented pain points.

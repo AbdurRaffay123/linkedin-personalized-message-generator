@@ -67,7 +67,28 @@ def _build_provider(key: str) -> LLMProvider:
         from app.llm.providers.anthropic_provider import AnthropicProvider
 
         return AnthropicProvider()
-    # Gemini / DeepSeek / Ollama providers plug in here (same interface).
+    if key == "gemini":  # FREE tier — aistudio.google.com/apikey
+        from app.llm.providers.gemini import GeminiProvider
+
+        return GeminiProvider()
+    if key == "ollama":  # local, free forever
+        from app.llm.providers.ollama import OllamaProvider
+
+        return OllamaProvider()
+
+    # OpenAI-compatible free/cheap backends share one provider class.
+    from app.llm.providers.openai_compatible import OpenAICompatibleProvider
+
+    compat = {
+        "groq": ("https://api.groq.com/openai/v1", settings.groq_api_key),
+        "openrouter": ("https://openrouter.ai/api/v1", settings.openrouter_api_key),
+        "deepseek": ("https://api.deepseek.com/v1", settings.deepseek_api_key),
+        "openai": (settings.openai_base_url, settings.openai_api_key),
+    }
+    if key in compat:
+        base_url, api_key = compat[key]
+        return OpenAICompatibleProvider(key, base_url, api_key)
+
     raise LLMError(f"unknown or unconfigured LLM provider '{key}'")
 
 
