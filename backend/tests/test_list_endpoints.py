@@ -1,14 +1,8 @@
 """Dashboard read endpoints."""
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
 
-from app.main import app
-
-client = TestClient(app)
-
-
-def test_list_prospects_analyses_messages():
+def test_list_prospects_analyses_messages(client):
     cap = client.post(
         "/api/v1/prospects/capture",
         json={"full_name": "List Target", "company": {"name": "ListCo"},
@@ -34,5 +28,5 @@ def test_list_prospects_analyses_messages():
     assert len(messages.json()) == 1
 
 
-def test_list_analyses_404_for_missing_prospect():
+def test_list_analyses_404_for_missing_prospect(client):
     assert client.get("/api/v1/prospects/999999/analyses").status_code == 404

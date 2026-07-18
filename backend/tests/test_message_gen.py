@@ -1,14 +1,8 @@
 """Message-generation tests: full loop capture -> analyze -> message."""
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
 
-from app.main import app
-
-client = TestClient(app)
-
-
-def test_capture_analyze_message_loop():
+def test_capture_analyze_message_loop(client):
     cap = client.post(
         "/api/v1/prospects/capture",
         json={"full_name": "Dana Buyer", "headline": "COO at Beta",
@@ -33,8 +27,6 @@ def test_capture_analyze_message_loop():
     assert body["model_used"]
 
 
-def test_message_rejected_before_analysis_completes():
-    # Fabricate a pending analysis via capture + analyze is always sync-complete
-    # with mock, so instead assert 404 on a missing analysis id.
+def test_message_404_for_missing_analysis(client):
     r = client.post("/api/v1/analyses/999999/messages", json={})
     assert r.status_code == 404

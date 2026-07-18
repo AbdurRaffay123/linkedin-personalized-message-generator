@@ -11,3 +11,14 @@ export async function getApiBase(): Promise<string> {
     return DEFAULT_API_BASE;
   }
 }
+
+// API key for the hardened backend. Set it once from the extension console:
+//   chrome.storage.local.set({ apiKey: "sk_live_…" })
+export async function getApiKey(): Promise<string> {
+  try {
+    const { apiKey } = await chrome.storage.local.get("apiKey");
+    return typeof apiKey === "string" ? apiKey : "";
+  } catch {
+    return "";
+  }
+}

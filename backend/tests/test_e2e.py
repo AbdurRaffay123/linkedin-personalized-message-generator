@@ -5,20 +5,14 @@ persistence, structured-output validation, and API layers work without secrets.
 """
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
 
-from app.main import app
-
-client = TestClient(app)
-
-
-def test_health():
+def test_health(client):
     r = client.get("/api/v1/health")
     assert r.status_code == 200
     assert r.json()["status"] == "ok"
 
 
-def test_full_pipeline():
+def test_full_pipeline(client):
     # 1. Passive capture (derived fields only).
     capture = client.post(
         "/api/v1/prospects/capture",

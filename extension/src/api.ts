@@ -1,14 +1,19 @@
 // Thin backend client used by the popup. All network egress goes to OUR backend
 // only (never to LinkedIn). Poll-based because analysis is an async job.
 
-import { getApiBase } from "./config";
+import { getApiBase, getApiKey } from "./config";
 import type { Analysis, CapturedProfile } from "./types";
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const base = await getApiBase();
+  const key = await getApiKey();
   const res = await fetch(`${base}${path}`, {
     ...init,
-    headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
+    headers: {
+      "content-type": "application/json",
+      ...(key ? { "X-API-Key": key } : {}),
+      ...(init?.headers ?? {}),
+    },
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");

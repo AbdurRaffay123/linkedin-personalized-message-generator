@@ -1,4 +1,9 @@
-"""HTTP surface: health, capture, async analyze + poll (blueprint §6)."""
+"""HTTP surface: health, capture, async analyze + poll, GDPR deletion.
+
+All data endpoints require an authenticated user (see core.auth) and enforce
+ownership: a user can only see/act on their own prospects. Unknown-vs-forbidden
+is collapsed to 404 so ids don't leak across tenants.
+"""
 from __future__ import annotations
 
 from datetime import timedelta
@@ -8,6 +13,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.core.auth import get_current_user
+from app.core.ratelimit import limit_analyze, limit_capture
 from app.db.base import get_db
 from app.db.models import (
     Analysis,
@@ -34,35 +41,44 @@ from app.schemas.prospect import (
 router = APIRouter()
 
 
-_DEV_EMAIL = "dev@local"
+# --- ownership helpers -------------------------------------------------------
+
+def _owned_prospect(prospect_id: int, user: User, db: Session) -> Prospect:
+    prospect = db.get(Prospect, prospect_id)
+    if prospect is None or prospect.user_id != user.id:
+        raise HTTPException(404, "prospect not found")
+    return prospect
 
 
-def _dev_user(db: Session) -> User:
-    """MVP single-user shim. Replaced by real auth in hardening (Phase 7)."""
-    user = db.scalar(select(User).where(User.email == _DEV_EMAIL))
-    if user is None:
-        user = User(email=_DEV_EMAIL)
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-    return user
+def _owned_analysis(analysis_id: int, user: User, db: Session) -> Analysis:
+    analysis = db.get(Analysis, analysis_id)
+    if analysis is None:
+        raise HTTPException(404, "analysis not found")
+    prospect = db.get(Prospect, analysis.prospect_id)
+    if prospect is None or prospect.user_id != user.id:
+        raise HTTPException(404, "analysis not found")
+    return analysis
 
+
+# --- health (unauthenticated) ------------------------------------------------
 
 @router.get("/health")
 def health() -> dict:
     return {"status": "ok", "app": settings.app_name, "env": settings.environment}
 
 
-@router.post("/prospects/capture", response_model=ProspectOut, status_code=201)
-def capture(payload: CaptureIn, db: Session = Depends(get_db)) -> Prospect:
-    """Passive extension posts derived fields only. No raw HTML stored."""
-    user = _dev_user(db)
+# --- capture -----------------------------------------------------------------
 
+@router.post("/prospects/capture", response_model=ProspectOut, status_code=201)
+def capture(
+    payload: CaptureIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(limit_capture),
+) -> Prospect:
+    """Passive extension posts derived fields only. No raw HTML stored."""
     company = None
     if payload.company is not None:
-        company = db.scalar(
-            select(Company).where(Company.name == payload.company.name)
-        )
+        company = db.scalar(select(Company).where(Company.name == payload.company.name))
         if company is None:
             company = Company(name=payload.company.name, domain=payload.company.domain)
             db.add(company)
@@ -87,10 +103,12 @@ def capture(payload: CaptureIn, db: Session = Depends(get_db)) -> Prospect:
     return prospect
 
 
+# --- reads (scoped to the user) ----------------------------------------------
+
 @router.get("/prospects", response_model=list[ProspectOut])
-def list_prospects(db: Session = Depends(get_db)) -> list[Prospect]:
-    """Most-recent-first list for the dashboard (current dev user)."""
-    user = _dev_user(db)
+def list_prospects(
+    db: Session = Depends(get_db), user: User = Depends(get_current_user)
+) -> list[Prospect]:
     return list(
         db.scalars(
             select(Prospect)
@@ -101,17 +119,21 @@ def list_prospects(db: Session = Depends(get_db)) -> list[Prospect]:
 
 
 @router.get("/prospects/{prospect_id}", response_model=ProspectOut)
-def get_prospect(prospect_id: int, db: Session = Depends(get_db)) -> Prospect:
-    prospect = db.get(Prospect, prospect_id)
-    if prospect is None:
-        raise HTTPException(404, "prospect not found")
-    return prospect
+def get_prospect(
+    prospect_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Prospect:
+    return _owned_prospect(prospect_id, user, db)
 
 
 @router.get("/prospects/{prospect_id}/analyses", response_model=list[AnalysisOut])
-def list_analyses(prospect_id: int, db: Session = Depends(get_db)) -> list[Analysis]:
-    if db.get(Prospect, prospect_id) is None:
-        raise HTTPException(404, "prospect not found")
+def list_analyses(
+    prospect_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> list[Analysis]:
+    _owned_prospect(prospect_id, user, db)
     return list(
         db.scalars(
             select(Analysis)
@@ -121,10 +143,22 @@ def list_analyses(prospect_id: int, db: Session = Depends(get_db)) -> list[Analy
     )
 
 
+@router.get("/analyses/{analysis_id}", response_model=AnalysisOut)
+def get_analysis(
+    analysis_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Analysis:
+    return _owned_analysis(analysis_id, user, db)
+
+
 @router.get("/analyses/{analysis_id}/messages", response_model=list[MessageOut])
-def list_messages(analysis_id: int, db: Session = Depends(get_db)) -> list[Message]:
-    if db.get(Analysis, analysis_id) is None:
-        raise HTTPException(404, "analysis not found")
+def list_messages(
+    analysis_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> list[Message]:
+    _owned_analysis(analysis_id, user, db)
     return list(
         db.scalars(
             select(Message)
@@ -134,20 +168,18 @@ def list_messages(analysis_id: int, db: Session = Depends(get_db)) -> list[Messa
     )
 
 
+# --- analyze (rate-limited) --------------------------------------------------
+
 @router.post(
-    "/prospects/{prospect_id}/analyze",
-    response_model=AnalyzeAccepted,
-    status_code=202,
+    "/prospects/{prospect_id}/analyze", response_model=AnalyzeAccepted, status_code=202
 )
 def analyze(
     prospect_id: int,
     background: BackgroundTasks,
     db: Session = Depends(get_db),
+    user: User = Depends(limit_analyze),
 ) -> AnalyzeAccepted:
-    prospect = db.get(Prospect, prospect_id)
-    if prospect is None:
-        raise HTTPException(404, "prospect not found")
-
+    _owned_prospect(prospect_id, user, db)
     analysis = Analysis(prospect_id=prospect_id, status=JobStatus.pending)
     db.add(analysis)
     db.commit()
@@ -157,25 +189,18 @@ def analyze(
     return AnalyzeAccepted(analysis_id=analysis.id, status=analysis.status)
 
 
-@router.get("/analyses/{analysis_id}", response_model=AnalysisOut)
-def get_analysis(analysis_id: int, db: Session = Depends(get_db)) -> Analysis:
-    analysis = db.get(Analysis, analysis_id)
-    if analysis is None:
-        raise HTTPException(404, "analysis not found")
-    return analysis
-
-
 @router.post(
     "/analyses/{analysis_id}/messages", response_model=MessageOut, status_code=201
 )
 async def create_message(
-    analysis_id: int, payload: MessageIn, db: Session = Depends(get_db)
+    analysis_id: int,
+    payload: MessageIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ) -> Message:
     """Draft a grounded outreach message from a completed brief. Human reviews
     before sending — we never auto-send (§5 human-in-the-loop gate)."""
-    analysis = db.get(Analysis, analysis_id)
-    if analysis is None:
-        raise HTTPException(404, "analysis not found")
+    analysis = _owned_analysis(analysis_id, user, db)
     if analysis.status != JobStatus.completed or analysis.result is None:
         raise HTTPException(409, "analysis is not completed")
 
@@ -194,6 +219,30 @@ async def create_message(
     db.commit()
     db.refresh(message)
     return message
+
+
+# --- GDPR / right-to-erasure -------------------------------------------------
+
+@router.delete("/prospects/{prospect_id}", status_code=204)
+def delete_prospect(
+    prospect_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> None:
+    """Delete a prospect and everything derived from it (cascade)."""
+    prospect = _owned_prospect(prospect_id, user, db)
+    db.delete(prospect)
+    db.commit()
+
+
+@router.delete("/me/data", status_code=204)
+def erase_my_data(
+    db: Session = Depends(get_db), user: User = Depends(get_current_user)
+) -> None:
+    """Right-to-erasure: purge all of the caller's prospects (and cascades)."""
+    for prospect in db.scalars(select(Prospect).where(Prospect.user_id == user.id)):
+        db.delete(prospect)
+    db.commit()
 
 
 def _run(analysis_id: int) -> None:

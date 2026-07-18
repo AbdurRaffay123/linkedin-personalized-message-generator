@@ -1,6 +1,7 @@
-"""Test fixtures: build a fresh schema on a throwaway SQLite DB per session.
+"""Test fixtures: throwaway SQLite schema + authenticated/anonymous clients.
 
-Keeps tests independent of Alembic state and of any dev database.
+The suite runs with auth ENABLED (production-like). The `client` fixture carries
+a valid API key; `anon_client` carries none.
 """
 from __future__ import annotations
 
@@ -13,6 +14,7 @@ import pytest
 _tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
 _tmp.close()
 os.environ["DATABASE_URL"] = f"sqlite:///{_tmp.name}"
+os.environ["AUTH_REQUIRED"] = "true"
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -24,3 +26,39 @@ def _schema():
     yield
     Base.metadata.drop_all(engine)
     os.unlink(_tmp.name)
+
+
+def _make_client(email: str):
+    from fastapi.testclient import TestClient
+    from app.core.auth import issue_key
+    from app.db.base import SessionLocal
+    from app.main import app
+
+    db = SessionLocal()
+    try:
+        key = issue_key(db, email)
+    finally:
+        db.close()
+    return TestClient(app, headers={"X-API-Key": key})
+
+
+@pytest.fixture
+def client(_schema):
+    """Authenticated client for the default test user."""
+    return _make_client("tester@local")
+
+
+@pytest.fixture
+def anon_client(_schema):
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limits():
+    from app.core.ratelimit import reset
+
+    reset()
+    yield

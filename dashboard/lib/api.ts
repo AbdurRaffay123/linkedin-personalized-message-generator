@@ -5,10 +5,18 @@ import type { Analysis, Message, Prospect } from "./types";
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000/api/v1";
 
+// API key for the hardened backend. Set NEXT_PUBLIC_API_KEY in .env.local
+// (issue one with `python -m app.issue_key you@example.com`).
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? "";
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
-    headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
+    headers: {
+      "content-type": "application/json",
+      ...(API_KEY ? { "X-API-Key": API_KEY } : {}),
+      ...(init?.headers ?? {}),
+    },
     cache: "no-store",
   });
   if (!res.ok) {

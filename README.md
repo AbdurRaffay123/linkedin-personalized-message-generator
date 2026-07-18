@@ -17,12 +17,27 @@ a thin capture client, and message generation is the commoditized last mile.
 | **4. Extension (thin client)** | MV3 passive content script → capture → analyze → render brief + draft ([`extension/`](./extension)) | ✅ **Built** (selectors need live-LinkedIn tuning) |
 | **5. Message generation** | message_gen role (Claude Sonnet 5 in prod), tone/length/goal, human-in-the-loop draft | ✅ **Done & verified** |
 | **6. Dashboard** | Next.js prospect list + brief view (evidence links) + message studio ([`dashboard/`](./dashboard)) | ✅ **Done & verified** |
-| 7. Hardening | Rate limits, GDPR/retention, injection red-team, observability | ⏳ Next |
+| **7. Hardening** | API-key auth + ownership, rate limits, GDPR deletion/purge, injection red-team, observability | ✅ **Done & verified** |
 
-The full loop — **capture → research → dual-LLM brief → grounded draft message** — runs
-end-to-end today on the keyless mock provider, across backend, extension, and dashboard.
-Only production hardening (Phase 7) remains: real auth, rate limits, GDPR/retention jobs,
-injection red-team, and observability.
+**All 7 phases are complete.** The full loop — **capture → research → dual-LLM brief →
+grounded draft message** — runs end-to-end on the keyless mock provider across backend,
+extension, and dashboard, behind a hardened, authenticated API.
+
+## Security & operations (Phase 7)
+
+- **Auth:** every data endpoint requires an API key (`Authorization: Bearer <key>` or
+  `X-API-Key`). Only the SHA-256 hash is stored. Issue one with
+  `python -m app.issue_key you@example.com`.
+- **Ownership isolation:** users only see their own prospects; cross-tenant ids return
+  404 (no existence leak).
+- **Rate limits:** the expensive `analyze` and `capture` endpoints are rate-limited per
+  user (in-process; swap in Redis for multi-worker).
+- **GDPR:** `DELETE /prospects/{id}` and `DELETE /me/data` (right-to-erasure); retention
+  purge job `python -m app.purge` deletes prospects past `retention_expires_at`.
+- **Injection red-team:** tests assert the Quarantine LLM only ever emits validated
+  structured data and the privileged reasoner never receives raw crawled tokens.
+- **Observability:** every response carries an `X-Request-ID`; requests are logged with
+  method/path/status/latency (never bodies or secrets). Security headers on all responses.
 
 ## Architecture
 

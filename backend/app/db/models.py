@@ -54,6 +54,29 @@ class User(Base):
     prospects: Mapped[list["Prospect"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    api_keys: Mapped[list["ApiKey"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+
+
+class ApiKey(Base):
+    """A hashed API key. The plaintext key is shown once at issue time and never
+    stored. Look up is by SHA-256 hash; `prefix` aids identification/rotation."""
+
+    __tablename__ = "api_keys"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    key_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    prefix: Mapped[str] = mapped_column(String(16))
+    name: Mapped[str | None] = mapped_column(String(128), default=None)
+    revoked: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
+
+    user: Mapped["User"] = relationship(back_populates="api_keys")
 
 
 class Company(Base):

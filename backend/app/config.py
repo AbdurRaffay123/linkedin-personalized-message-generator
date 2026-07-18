@@ -47,6 +47,20 @@ class Settings(BaseSettings):
     # --- Security / retention ---
     data_retention_days: int = 90  # GDPR: prospects expire after this window
 
+    # --- Auth ---
+    # When true (default), all data endpoints require a valid API key. Set false
+    # ONLY for isolated local experiments — never in a deployed environment.
+    auth_required: bool = True
+
+    # --- Rate limiting (in-process token bucket; use Redis for multi-worker) ---
+    rate_limit_analyze_per_hour: int = 60   # expensive: research + LLM calls
+    rate_limit_capture_per_hour: int = 300
+
+    # --- CORS: explicit allowlist in prod; "*" only honored in debug ---
+    cors_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:3000"]
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:
