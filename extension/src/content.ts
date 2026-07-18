@@ -5,6 +5,11 @@
 //   - No auto-navigation, no clicking, no background jobs, no scrolling loops.
 //   - Extracts derived fields only; raw HTML never leaves the page.
 // It does nothing until the popup explicitly asks (user-triggered).
+//
+// Selectors validated against a live profile (2026-07). LinkedIn ships several
+// layout variants, so every field tries multiple selectors and degrades to a
+// heading-based lookup (section <h2>/<h3> titles are far more stable than the
+// obfuscated class names).
 
 import type { CapturedPost, CapturedProfile, ExtractResponse } from "./types";
 
@@ -12,49 +17,81 @@ function text(el: Element | null | undefined): string {
   return (el?.textContent ?? "").replace(/\s+/g, " ").trim();
 }
 
-/** Try several selectors; return the first non-empty match. LinkedIn's DOM
- *  changes often, so we degrade gracefully instead of throwing. */
-function firstText(selectors: string[]): string {
+function firstText(selectors: string[], root: ParentNode = document): string {
   for (const sel of selectors) {
-    const t = text(document.querySelector(sel));
+    const t = text(root.querySelector(sel));
     if (t) return t;
   }
   return "";
+}
+
+/** The top "intro" card that holds the name + headline. */
+function introCard(): ParentNode {
+  const h1 = document.querySelector("main h1");
+  return h1?.closest("section") ?? document.querySelector("main") ?? document;
+}
+
+/** Read a profile section's body text by matching its heading, then strip the
+ *  heading label. Resilient because section titles ("About", "Experience")
+ *  change far less than class names. */
+function sectionTextByHeading(titles: string[], maxLen = 2000): string {
+  const heads = Array.from(document.querySelectorAll("h2, h3"));
+  const wanted = titles.map((t) => t.toLowerCase());
+  const heading = heads.find((el) => wanted.includes(text(el).toLowerCase()));
+  const section = heading?.closest("section");
+  if (!section) return "";
+  let body = text(section);
+  const label = text(heading);
+  if (label && body.toLowerCase().startsWith(label.toLowerCase())) {
+    body = body.slice(label.length).trim();
+  }
+  return body.slice(0, maxLen);
 }
 
 function extractName(): string {
-  return firstText([
-    "main h1",
-    "h1.text-heading-xlarge",
-    "h1",
-  ]);
+  return firstText(["main h1", "h1.text-heading-xlarge", "h1"]);
 }
 
 function extractHeadline(): string {
-  return firstText([
-    "div.text-body-medium.break-words",
-    "main .text-body-medium",
-  ]);
+  // Scope to the intro card so a generic class can't match unrelated text.
+  return firstText(
+    [
+      ".text-body-medium.break-words",
+      ".body-small.text-color-text",
+      ".text-body-medium",
+    ],
+    introCard(),
+  );
 }
 
 function extractAbout(): string {
-  // The "About" section: find the anchor, then read its section's body.
-  const anchor = document.querySelector("#about");
-  const section = anchor?.closest("section");
-  if (section) {
-    const body = section.querySelector(
-      ".display-flex.full-width, .inline-show-more-text, span[aria-hidden='true']",
-    );
-    const t = text(body);
-    if (t) return t;
-  }
-  return "";
+  return sectionTextByHeading(["about"]);
+}
+
+function extractCompany(): { name: string } | null {
+  // This layout exposes the current company directly.
+  const direct = firstText([
+    ".member-current-company",
+    "button[aria-label^='Current company'] span",
+  ]);
+  if (direct) return { name: direct };
+  // Fallback: first company link inside the Experience section.
+  const heads = Array.from(document.querySelectorAll("h2, h3"));
+  const exp = heads
+    .find((el) => text(el).toLowerCase() === "experience")
+    ?.closest("section");
+  const link = exp?.querySelector("a[href*='/company/'] span[aria-hidden='true']");
+  const name = text(link);
+  return name ? { name } : null;
 }
 
 function extractPosts(limit = 5): CapturedPost[] {
-  // Only posts already rendered on the page — we never scroll or fetch more.
+  // Only posts already rendered — we never scroll or fetch more. Often empty on
+  // a profile view (activity is lazy-loaded); the brief works without them.
   const nodes = document.querySelectorAll(
-    ".feed-shared-update-v2 .update-components-text, .feed-shared-update-v2 .break-words",
+    ".feed-shared-update-v2 .update-components-text, " +
+      ".feed-shared-update-v2 .break-words, " +
+      "[data-urn*='activity'] .update-components-text",
   );
   const seen = new Set<string>();
   const posts: CapturedPost[] = [];
@@ -67,15 +104,6 @@ function extractPosts(limit = 5): CapturedPost[] {
     }
   }
   return posts;
-}
-
-function extractCompany(): { name: string } | null {
-  // Best-effort: the current-role company is often the first experience entity.
-  const exp = document.querySelector(
-    "#experience ~ .pvs-list__outer-container span[aria-hidden='true']",
-  );
-  const name = text(exp);
-  return name ? { name } : null;
 }
 
 function extractProfile(): CapturedProfile {
