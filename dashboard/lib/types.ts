@@ -29,6 +29,7 @@ export interface PainHypothesis {
 }
 
 export interface AnalysisResult {
+  persona_summary?: string;
   signals: Signal[];
   pain_hypotheses: PainHypothesis[];
   recommended_angle: string;

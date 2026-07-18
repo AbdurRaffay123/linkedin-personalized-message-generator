@@ -68,6 +68,18 @@ function extractAbout(): string {
   return sectionTextByHeading(["about"]);
 }
 
+function extractExperience(): string {
+  return sectionTextByHeading(["experience"]);
+}
+
+function extractEducation(): string {
+  return sectionTextByHeading(["education"]);
+}
+
+function extractSkills(): string {
+  return sectionTextByHeading(["skills"], 800);
+}
+
 function extractCompany(): { name: string } | null {
   // This layout exposes the current company directly.
   const direct = firstText([
@@ -86,21 +98,31 @@ function extractCompany(): { name: string } | null {
 }
 
 function extractPosts(limit = 5): CapturedPost[] {
-  // Only posts already rendered — we never scroll or fetch more. Often empty on
-  // a profile view (activity is lazy-loaded); the brief works without them.
-  const nodes = document.querySelectorAll(
-    ".feed-shared-update-v2 .update-components-text, " +
-      ".feed-shared-update-v2 .break-words, " +
-      "[data-urn*='activity'] .update-components-text",
-  );
+  // Only posts already RENDERED on the page — we never scroll or navigate. On a
+  // profile view the "Activity" section shows a few recent posts; to capture more,
+  // the user can open/scroll their activity before clicking Analyze (still their
+  // action, never ours). Posts are the strongest signal of mindset & pain.
+  const activity = Array.from(document.querySelectorAll("h2, h3"))
+    .find((h) => text(h).toLowerCase() === "activity")
+    ?.closest("section");
+  const roots: ParentNode[] = activity ? [activity, document] : [document];
+
   const seen = new Set<string>();
   const posts: CapturedPost[] = [];
-  for (const node of Array.from(nodes)) {
-    const content = text(node);
-    if (content && !seen.has(content)) {
-      seen.add(content);
-      posts.push({ content });
-      if (posts.length >= limit) break;
+  for (const root of roots) {
+    const nodes = root.querySelectorAll(
+      ".feed-shared-update-v2 .update-components-text, " +
+        ".feed-shared-update-v2 .break-words, " +
+        "[data-urn*='activity'] .update-components-text, " +
+        ".update-components-text",
+    );
+    for (const node of Array.from(nodes)) {
+      const content = text(node);
+      if (content && content.length > 15 && !seen.has(content)) {
+        seen.add(content);
+        posts.push({ content });
+        if (posts.length >= limit) return posts;
+      }
     }
   }
   return posts;
@@ -119,6 +141,9 @@ function extractProfile(): CapturedProfile {
     about: extractAbout() || null,
     linkedin_url: location.href.split("?")[0],
     company: extractCompany(),
+    experience: extractExperience() || null,
+    education: extractEducation() || null,
+    skills: extractSkills() || null,
     posts: extractPosts(),
   };
 }

@@ -45,6 +45,9 @@ class QuarantineFindings(BaseModel):
 class AnalysisResult(BaseModel):
     """The structured brief stored in Analysis.result."""
 
+    # Who they are + how they think — inferred from role, background, and writing.
+    # Grounds the outreach in their actual mindset and ICP fit.
+    persona_summary: str = ""
     signals: list[Signal] = Field(default_factory=list)
     pain_hypotheses: list[PainHypothesis] = Field(default_factory=list)
     recommended_angle: str

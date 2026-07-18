@@ -91,6 +91,9 @@ def capture(
         headline=payload.headline,
         about=payload.about,
         linkedin_url=payload.linkedin_url,
+        experience=payload.experience,
+        education=payload.education,
+        skills=payload.skills,
         retention_expires_at=utcnow() + timedelta(days=settings.data_retention_days),
     )
     for p in payload.posts:

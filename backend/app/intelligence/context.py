@@ -21,6 +21,9 @@ class ProspectContext:
     company_name: str | None
     company_domain: str | None
     recent_posts: list[str]
+    experience: str | None
+    education: str | None
+    skills: str | None
     firmographics: dict | None
     # Already-structured, already-validated — safe to hand to the privileged LLM.
     quarantine: QuarantineFindings
@@ -29,12 +32,18 @@ class ProspectContext:
         lines = [
             f"Prospect: {self.full_name}",
             f"Headline: {self.headline or 'n/a'}",
-            f"About: {self.about or 'n/a'}",
             f"Company: {self.company_name or 'n/a'} ({self.company_domain or 'no domain'})",
+            f"About: {self.about or 'n/a'}",
         ]
+        if self.experience:
+            lines.append(f"Experience: {self.experience[:1500]}")
+        if self.education:
+            lines.append(f"Education: {self.education[:600]}")
+        if self.skills:
+            lines.append(f"Skills: {self.skills[:600]}")
         if self.recent_posts:
-            lines.append("Recent posts:")
-            lines += [f"  - {p[:400]}" for p in self.recent_posts]
+            lines.append("Recent posts (their own words — best signal of mindset & pain):")
+            lines += [f"  - {p[:500]}" for p in self.recent_posts]
         if self.firmographics:
             lines.append(f"Firmographics: {self.firmographics}")
         lines.append("\nStructured web findings (validated, from quarantined reader):")
@@ -62,6 +71,9 @@ def build_context(
             findings.domain if findings else None
         ),
         recent_posts=[p.content for p in posts],
+        experience=prospect.experience,
+        education=prospect.education,
+        skills=prospect.skills,
         firmographics=findings.firmographics if findings else None,
         quarantine=quarantine,
     )

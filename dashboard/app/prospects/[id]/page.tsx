@@ -136,6 +136,15 @@ function BriefView({ analysis }: { analysis: Analysis }) {
         {reach.reasoning}
       </p>
 
+      {brief.persona_summary && (
+        <section>
+          <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-500">
+            Who they are
+          </h3>
+          <p className="text-sm">{brief.persona_summary}</p>
+        </section>
+      )}
+
       {brief.signals.length > 0 && (
         <section>
           <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-500">

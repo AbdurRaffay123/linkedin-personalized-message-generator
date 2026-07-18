@@ -132,6 +132,13 @@ function Brief({ brief }: { brief: AnalysisResult }) {
         {reach.reasoning}
       </div>
 
+      {brief.persona_summary && (
+        <section>
+          <h2>Who they are</h2>
+          <div style={{ fontSize: 12 }}>{brief.persona_summary}</div>
+        </section>
+      )}
+
       {brief.signals.length > 0 && (
         <section>
           <h2>Signals</h2>

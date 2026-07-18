@@ -15,8 +15,13 @@ from app.schemas.analysis import AnalysisResult
 # feeding only the structured brief — the model has nothing else to draw from.
 _SYSTEM = """You write short, human first-touch outreach for a founder/seller.
 
+Write to THIS person's psychology — meet them where their head is at. Use the
+persona and their likely pain to make the opener feel like it was written by
+someone who actually gets them.
+
 Hard rules:
 - Ground every specific claim in the provided brief's evidence. Invent nothing.
+- Speak to their mindset and lead with the pain that matters most to them.
 - No fake compliments, no generic sales language, no manufactured urgency.
 - Prefer one specific, verifiable observation as the opener.
 - Founder-to-founder tone: natural, direct, low-pressure.
@@ -38,9 +43,10 @@ async def generate_message(
     pains = "; ".join(h.hypothesis for h in brief.pain_hypotheses) or "none"
     user = (
         f"Prospect: {prospect_name}\n"
+        f"Who they are (persona/mindset): {brief.persona_summary or 'n/a'}\n"
         f"Recommended angle: {brief.recommended_angle}\n"
         f"Signals: {signals}\n"
-        f"Pain hypotheses: {pains}\n\n"
+        f"Pain hypotheses (lead with the one that matters most): {pains}\n\n"
         f"Write a {length}, {tone} message whose goal is to {goal}."
     )
     return await router.generate(

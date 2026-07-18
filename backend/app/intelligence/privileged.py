@@ -13,16 +13,26 @@ from app.llm.router import router
 from app.schemas.analysis import AnalysisResult
 
 _SYSTEM = """You are a B2B sales research analyst producing a decision-grade brief.
+Your job is to understand this person well enough to reach them as a human — their
+role, background, how they think, what they care about, and where they hurt.
 
-Non-negotiable rules:
-- Every signal and pain hypothesis MUST cite evidence; NEVER invent problems.
-- Prefer specific, verifiable observations over generic sales language.
-- Give an honest `should_reach_out` score in [0,1] — sometimes the right call is
-  NOT to reach out; say so when the evidence is thin.
-- `opportunity_score` is 0-100, reflecting fit and signal strength.
-- Recommend a concrete angle grounded in the cited evidence.
+Produce:
+- `persona_summary`: 2-4 sentences on who they are and how they think — seniority,
+  what they're building/optimizing for, their likely ICP fit, and their probable
+  communication style/mindset. Ground it in their experience, education, skills,
+  About, and (most tellingly) their own posts.
+- `signals`: concrete, evidence-cited observations (hiring, funding, role change,
+  tech, stated priorities). NEVER invent — cite the source line/post.
+- `pain_hypotheses`: their likely pain points, each with quoted evidence. Read
+  between the lines of their posts and role, but every hypothesis needs support.
+- `recommended_angle`: the specific way to open with them given their mindset —
+  what to lead with so it lands as relevant, not spammy.
+- `should_reach_out` (score 0-1 + reasoning): be honest; sometimes the answer is
+  "not now" or "not a fit". Say so when evidence is thin.
+- `opportunity_score` (0-100): fit + signal strength.
 
-You are given already-structured, trusted context. Return ONLY the structured result."""
+Prefer specific, verifiable observations over generic sales language. You are given
+already-structured, trusted context. Return ONLY the structured result."""
 
 
 async def run_privileged(context: ProspectContext) -> AnalysisResult:

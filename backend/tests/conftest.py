@@ -15,6 +15,11 @@ _tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
 _tmp.close()
 os.environ["DATABASE_URL"] = f"sqlite:///{_tmp.name}"
 os.environ["AUTH_REQUIRED"] = "true"
+# Force the keyless deterministic provider so tests never hit a real LLM API,
+# overriding any MODEL_* set in a developer's .env.
+os.environ["MODEL_EXTRACTION"] = "mock:extraction"
+os.environ["MODEL_REASONING"] = "mock:reasoning"
+os.environ["MODEL_MESSAGE_GEN"] = "mock:message"
 
 
 @pytest.fixture(scope="session", autouse=True)

@@ -106,6 +106,10 @@ class Prospect(Base):
     headline: Mapped[str | None] = mapped_column(String(512), default=None)
     about: Mapped[str | None] = mapped_column(Text, default=None)
     linkedin_url: Mapped[str | None] = mapped_column(String(512), default=None)
+    # Richer captured context for ICP/persona inference (section text blocks).
+    experience: Mapped[str | None] = mapped_column(Text, default=None)
+    education: Mapped[str | None] = mapped_column(Text, default=None)
+    skills: Mapped[str | None] = mapped_column(Text, default=None)
 
     source: Mapped[str] = mapped_column(String(32), default="extension")
     captured_at: Mapped[datetime] = mapped_column(

@@ -11,6 +11,9 @@ export interface CapturedProfile {
   about?: string | null;
   linkedin_url?: string | null;
   company?: { name: string; domain?: string | null } | null;
+  experience?: string | null;
+  education?: string | null;
+  skills?: string | null;
   posts: CapturedPost[];
 }
 
@@ -28,6 +31,7 @@ export interface PainHypothesis {
 }
 
 export interface AnalysisResult {
+  persona_summary?: string;
   signals: Signal[];
   pain_hypotheses: PainHypothesis[];
   recommended_angle: string;

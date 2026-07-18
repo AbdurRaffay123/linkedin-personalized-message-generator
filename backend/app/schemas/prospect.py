@@ -29,6 +29,10 @@ class CaptureIn(BaseModel):
     about: str | None = None
     linkedin_url: str | None = None
     company: CompanyIn | None = None
+    # Richer context for ICP/persona inference (section text blocks).
+    experience: str | None = None
+    education: str | None = None
+    skills: str | None = None
     posts: list[PostIn] = Field(default_factory=list)
 
 
