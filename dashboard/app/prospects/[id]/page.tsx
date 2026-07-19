@@ -207,7 +207,9 @@ function BriefView({ analysis }: { analysis: Analysis }) {
 function MessageStudio({ analysisId }: { analysisId: number }) {
   const [tone, setTone] = useState("warm");
   const [length, setLength] = useState("short");
-  const [goal, setGoal] = useState("book a short call");
+  const [goal, setGoal] = useState(
+    "start a genuine conversation and build rapport (no hard ask)",
+  );
   const [messages, setMessages] = useState<Message[]>([]);
   const [drafting, setDrafting] = useState(false);
   const [err, setErr] = useState("");

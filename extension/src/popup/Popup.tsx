@@ -107,7 +107,7 @@ export function Popup() {
       const { body } = await createMessage(analysisId, {
         tone: "warm",
         length: "short",
-        goal: "book a short call",
+        goal: "start a genuine conversation and build rapport (no hard ask)",
       });
       setDraft(body);
     } catch (e) {
