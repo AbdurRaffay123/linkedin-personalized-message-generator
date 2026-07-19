@@ -1,7 +1,7 @@
 // Backend base URL. Override at runtime via chrome.storage (key "apiBase") so the
 // same build can point at localhost in dev and a deployed URL in production
 // without rebuilding. Keep the host in manifest host_permissions in sync.
-const DEFAULT_API_BASE = "http://localhost:8000/api/v1";
+export const DEFAULT_API_BASE = "http://localhost:8000/api/v1";
 
 export async function getApiBase(): Promise<string> {
   try {
@@ -12,8 +12,10 @@ export async function getApiBase(): Promise<string> {
   }
 }
 
-// API key for the hardened backend. Set it once from the extension console:
-//   chrome.storage.local.set({ apiKey: "sk_live_…" })
+// API key for the hardened backend. Configured from the popup's Settings panel
+// (gear icon) — no console needed. Issue a key with:
+//   cd backend && bash start.sh        (prints & saves the key to .devkey.txt)
+//   — or —  python -m app.issue_key you@example.com
 export async function getApiKey(): Promise<string> {
   try {
     const { apiKey } = await chrome.storage.local.get("apiKey");
@@ -21,4 +23,16 @@ export async function getApiKey(): Promise<string> {
   } catch {
     return "";
   }
+}
+
+/** Persist the backend base URL + API key from the Settings panel. Empty base
+ *  falls back to the default; the API key is stored verbatim. */
+export async function saveSettings(opts: {
+  apiBase: string;
+  apiKey: string;
+}): Promise<void> {
+  await chrome.storage.local.set({
+    apiBase: opts.apiBase.trim() || DEFAULT_API_BASE,
+    apiKey: opts.apiKey.trim(),
+  });
 }

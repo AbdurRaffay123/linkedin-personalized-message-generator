@@ -22,6 +22,18 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/** Ping the backend so Settings can confirm the URL + key work before the user
+ *  tries a real profile. Returns a short human-readable status string. */
+export async function testConnection(): Promise<string> {
+  const base = await getApiBase();
+  const key = await getApiKey();
+  const res = await fetch(`${base}/health`, {
+    headers: key ? { "X-API-Key": key } : {},
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return "Connected ✓";
+}
+
 export async function capture(profile: CapturedProfile): Promise<{ id: number }> {
   return req("/prospects/capture", {
     method: "POST",

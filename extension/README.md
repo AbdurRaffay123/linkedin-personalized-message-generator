@@ -15,21 +15,23 @@ npm run build        # → dist/   (npm run watch for live rebuilds)
 ```
 
 Then in Chrome:
-1. Go to `chrome://extensions`, enable **Developer mode**.
-2. **Load unpacked** → select the `extension/dist` folder.
-3. Start the backend (`cd ../backend && uvicorn app.main:app --reload`).
-4. Open a `linkedin.com/in/…` profile, click the extension icon → **Analyze this profile**.
+1. Start the backend: `cd ../backend && bash start.sh` — it prints your **API key**
+   (also saved to `backend/.devkey.txt`). Serves on `http://localhost:8000`.
+2. Go to `chrome://extensions`, enable **Developer mode**.
+3. **Load unpacked** → select the `extension/dist` folder.
+4. Click the extension icon → **⚙ Settings** → paste the API key (the Backend URL
+   is already filled in) → **Save** (use **Test connection** to confirm). No console needed.
+5. Open a `linkedin.com/in/…` profile, click the extension icon → **Analyze this profile**.
+
+> After loading the extension, reload any LinkedIn profile tab that was already
+> open so the content script attaches.
 
 ## Pointing at a deployed backend
 
-The default backend is `http://localhost:8000`. To use another URL without
-rebuilding, set it in the extension's storage from its service-worker console:
-
-```js
-chrome.storage.local.set({ apiBase: "https://your-api.example/api/v1" })
-```
-
-Also add that host to `host_permissions` in `public/manifest.json` and rebuild.
+The default backend is `http://localhost:8000`. To use another URL, just change
+the **Backend URL** field in **⚙ Settings** — no rebuild, no console. For a
+non-localhost host, also add it to `host_permissions` in `public/manifest.json`
+and rebuild (localhost on any port already works).
 
 ## Architecture
 

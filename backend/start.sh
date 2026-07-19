@@ -13,9 +13,9 @@ echo ""
 echo "=================================================================="
 echo "  AI Sales Assistant backend"
 echo "  API key : $(cat .devkey.txt)"
-echo "  Docs    : http://localhost:8001/docs"
-echo "  Health  : http://localhost:8001/api/v1/health"
+echo "  Docs    : http://localhost:8000/docs"
+echo "  Health  : http://localhost:8000/api/v1/health"
 echo "  (leave this window open; press Ctrl+C to stop)"
 echo "=================================================================="
 echo ""
-exec .venv/bin/uvicorn app.main:app --port 8001 --reload
+exec .venv/bin/uvicorn app.main:app --port 8000 --reload

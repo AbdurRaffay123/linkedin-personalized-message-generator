@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   capture,
   createMessage,
   pollAnalysis,
   startAnalysis,
+  testConnection,
 } from "../api";
+import { DEFAULT_API_BASE, getApiBase, getApiKey, saveSettings } from "../config";
 import type { AnalysisResult, ExtractResponse } from "../types";
 
 type Phase = "idle" | "working" | "done" | "error";
@@ -38,6 +40,19 @@ export function Popup() {
   const [analysisId, setAnalysisId] = useState<number | null>(null);
   const [draft, setDraft] = useState<string>("");
   const [drafting, setDrafting] = useState(false);
+
+  // Settings: backend URL + API key, persisted to chrome.storage (no console).
+  const [showSettings, setShowSettings] = useState(false);
+  const [hasKey, setHasKey] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    // On first open, auto-reveal Settings if no key has been configured yet.
+    getApiKey().then((k) => {
+      const configured = Boolean(k);
+      setHasKey(configured);
+      if (!configured) setShowSettings(true);
+    });
+  }, []);
 
   async function run() {
     setPhase("working");
@@ -89,7 +104,33 @@ export function Popup() {
 
   return (
     <div>
-      <h1>AI Sales Assistant</h1>
+      <div className="header">
+        <h1>AI Sales Assistant</h1>
+        <button
+          className="icon"
+          title="Settings"
+          aria-label="Settings"
+          onClick={() => setShowSettings((s) => !s)}
+        >
+          ⚙
+        </button>
+      </div>
+
+      {showSettings && (
+        <Settings
+          onSaved={(key) => {
+            setHasKey(Boolean(key));
+            setShowSettings(false);
+          }}
+        />
+      )}
+
+      {hasKey === false && !showSettings && (
+        <div className="err">
+          Set your backend URL &amp; API key in ⚙ Settings first.
+        </div>
+      )}
+
       <button onClick={run} disabled={phase === "working"}>
         {phase === "working" ? "Working…" : "Analyze this profile"}
       </button>
@@ -113,6 +154,72 @@ export function Popup() {
           )}
         </section>
       )}
+    </div>
+  );
+}
+
+function Settings({ onSaved }: { onSaved: (apiKey: string) => void }) {
+  const [apiBase, setApiBase] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [status, setStatus] = useState("");
+  const [testing, setTesting] = useState(false);
+
+  useEffect(() => {
+    getApiBase().then(setApiBase);
+    getApiKey().then(setApiKey);
+  }, []);
+
+  async function save() {
+    await saveSettings({ apiBase, apiKey });
+    setStatus("Saved ✓");
+    onSaved(apiKey.trim());
+  }
+
+  async function test() {
+    setTesting(true);
+    setStatus("");
+    // Persist first so the test uses the values currently in the fields.
+    await saveSettings({ apiBase, apiKey });
+    try {
+      setStatus(await testConnection());
+    } catch (e) {
+      setStatus(
+        `Can't reach backend: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  return (
+    <div className="card settings">
+      <label>
+        Backend URL
+        <input
+          value={apiBase}
+          placeholder={DEFAULT_API_BASE}
+          onChange={(e) => setApiBase(e.target.value)}
+        />
+      </label>
+      <label>
+        API key
+        <input
+          type="password"
+          value={apiKey}
+          placeholder="sk_live_…"
+          onChange={(e) => setApiKey(e.target.value)}
+        />
+      </label>
+      <div className="hint muted">
+        Run <code>bash backend/start.sh</code> — it prints your API key.
+      </div>
+      <div className="row">
+        <button onClick={save}>Save</button>
+        <button className="secondary" onClick={test} disabled={testing}>
+          {testing ? "Testing…" : "Test connection"}
+        </button>
+      </div>
+      {status && <div className="stage muted">{status}</div>}
     </div>
   );
 }
