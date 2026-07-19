@@ -17,6 +17,7 @@ from app.db.models import CrawledPage as CrawledPageRow  # ORM; distinct from re
 from app.intelligence.context import build_context
 from app.intelligence.privileged import run_privileged
 from app.intelligence.quarantine import run_quarantine
+from app.intelligence.scoring import score_prospect
 from app.research.base import WebFindings
 from app.research.engine import research_company
 
@@ -49,6 +50,10 @@ async def run_analysis(analysis_id: int) -> None:
         _set_stage(db, analysis, "reasoning")
         context = build_context(prospect, posts, findings, quarantine)
         result = await run_privileged(context)
+
+        # 3b. Override the model's self-reported scores with a deterministic,
+        # evidence-based score (the LLM is a poor calibrator — see scoring.py).
+        result = score_prospect(result, context)
 
         # 4. Persist brief + provenance.
         analysis.result = result.model_dump()

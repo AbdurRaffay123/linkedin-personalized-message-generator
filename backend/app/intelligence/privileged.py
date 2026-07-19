@@ -27,9 +27,11 @@ Produce:
   between the lines of their posts and role, but every hypothesis needs support.
 - `recommended_angle`: the specific way to open with them given their mindset —
   what to lead with so it lands as relevant, not spammy.
-- `should_reach_out` (score 0-1 + reasoning): be honest; sometimes the answer is
-  "not now" or "not a fit". Say so when evidence is thin.
-- `opportunity_score` (0-100): fit + signal strength.
+- `should_reach_out` (score 0-1 + reasoning) and `opportunity_score` (0-100):
+  provide your honest read, but note these numbers are recomputed downstream from
+  the concrete evidence you cite — so your real job is to surface strong, specific
+  signals and evidence-backed pain, not to pick a number. Thin evidence should
+  read as thin.
 
 Prefer specific, verifiable observations over generic sales language. You are given
 already-structured, trusted context. Return ONLY the structured result."""
