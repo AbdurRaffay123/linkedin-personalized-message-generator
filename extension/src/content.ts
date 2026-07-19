@@ -151,12 +151,23 @@ function extractCompany(): { name: string } | null {
   return name ? { name } : null;
 }
 
-function extractPosts(limit = 8): CapturedPost[] {
+/** Strip LinkedIn's "…see more" / "…more" toggle text that gets concatenated
+ *  into a post's textContent, plus collapse whitespace. */
+function cleanPost(s: string): string {
+  return s
+    .replace(/\s*(…|\.\.\.)?\s*see more\s*$/i, "")
+    .replace(/\s*…\s*more\s*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractPosts(limit = 15): CapturedPost[] {
   // Only posts already RENDERED on the page — we never scroll or navigate. The
   // profile "Activity" card shows just 1–2 recent posts; for real coverage the
-  // user should open the person's Activity/Posts feed and scroll a little before
-  // clicking Analyze (their action, never ours). Posts are the strongest signal
-  // of mindset & pain, so we cast a wide net across LinkedIn's post-text markup.
+  // user should open the person's Activity/Posts feed and scroll to load 10–15
+  // posts before clicking Analyze (their action, never ours). More posts =
+  // stronger pattern signal for the LLM, so we cast a wide net and keep the
+  // FULLEST text for each (a truncated copy of a longer capture is dropped).
   const POST_TEXT_SELECTORS = [
     ".feed-shared-update-v2 .update-components-text",
     ".update-components-update-v2__commentary",
@@ -166,28 +177,23 @@ function extractPosts(limit = 8): CapturedPost[] {
     ".update-components-text",
   ].join(", ");
 
-  const seen = new Set<string>();
-  const posts: CapturedPost[] = [];
+  // Collect every candidate, cleaned; longest first so fuller variants win.
+  const candidates: string[] = [];
   for (const node of Array.from(document.querySelectorAll(POST_TEXT_SELECTORS))) {
-    // Skip nodes nested inside an already-captured post (avoids duplicates from
-    // overlapping selectors matching parent + child).
-    const content = text(node);
-    if (!content || content.length <= 20) continue;
-    // Collapse near-duplicates: a truncated "…more" copy of a longer capture.
-    if (seen.has(content)) continue;
-    let dup = false;
-    for (const prev of seen) {
-      if (prev.includes(content) || content.includes(prev)) {
-        dup = true;
-        break;
-      }
-    }
-    if (dup) continue;
-    seen.add(content);
-    posts.push({ content });
-    if (posts.length >= limit) break;
+    const content = cleanPost(text(node));
+    if (content.length > 20) candidates.push(content);
   }
-  return posts;
+  candidates.sort((a, b) => b.length - a.length);
+
+  // Keep each post once, preferring the fullest version: skip any text that is
+  // already contained in a longer kept post (a truncated duplicate).
+  const kept: string[] = [];
+  for (const c of candidates) {
+    if (kept.some((k) => k.includes(c))) continue;
+    kept.push(c);
+    if (kept.length >= limit) break;
+  }
+  return kept.map((content) => ({ content }));
 }
 
 /** When post capture comes back empty, probe candidate LinkedIn post-markup

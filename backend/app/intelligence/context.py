@@ -43,7 +43,7 @@ class ProspectContext:
             lines.append(f"Skills: {self.skills[:600]}")
         if self.recent_posts:
             lines.append("Recent posts (their own words — best signal of mindset & pain):")
-            lines += [f"  - {p[:500]}" for p in self.recent_posts]
+            lines += [f"  - {p[:1200]}" for p in self.recent_posts]
         if self.firmographics:
             lines.append(f"Firmographics: {self.firmographics}")
         lines.append("\nStructured web findings (validated, from quarantined reader):")
