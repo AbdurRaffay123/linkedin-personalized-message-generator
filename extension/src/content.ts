@@ -163,6 +163,36 @@ function extractPosts(limit = 8): CapturedPost[] {
   return posts;
 }
 
+/** When post capture comes back empty, probe candidate LinkedIn post-markup
+ *  patterns and report how many each matches. Lets us pinpoint the right
+ *  selector from the popup, without needing the DevTools console. */
+function postsDiagnostic(): string {
+  const probes: [string, string][] = [
+    ["feed-shared-update-v2", ".feed-shared-update-v2"],
+    ["update-components-text", ".update-components-text"],
+    ["v2__commentary", ".update-components-update-v2__commentary"],
+    ["inline-show-more-text", ".feed-shared-inline-show-more-text"],
+    ["data-urn*activity", "[data-urn*='activity']"],
+    ["data-urn*share", "[data-urn*='share']"],
+    ["data-id*activity", "[data-id*='urn:li:activity']"],
+    ["any data-urn", "[data-urn]"],
+    ["role=article", "[role='article']"],
+    ["break-words", ".break-words"],
+  ];
+  const hits = probes
+    .map(([label, sel]) => {
+      let n = 0;
+      try {
+        n = document.querySelectorAll(sel).length;
+      } catch {
+        n = -1;
+      }
+      return `${label}=${n}`;
+    })
+    .join(" ");
+  return `[posts-diag] path=${location.pathname} ${hits}`;
+}
+
 function extractProfile(): CapturedProfile {
   const full_name = extractName();
   if (!full_name) {
@@ -193,7 +223,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "EXTRACT_PROFILE") {
     try {
       const profile = extractProfile();
-      sendResponse({ ok: true, profile } satisfies ExtractResponse);
+      // Surface a post-markup probe when nothing was captured, so selectors can
+      // be tuned to the live DOM from the popup.
+      const notes = profile.posts.length === 0 ? postsDiagnostic() : undefined;
+      sendResponse({ ok: true, profile, notes } satisfies ExtractResponse);
     } catch (e) {
       sendResponse({
         ok: false,

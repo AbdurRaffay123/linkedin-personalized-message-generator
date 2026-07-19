@@ -54,5 +54,5 @@ export interface Analysis {
 // Messages between the popup and the content script.
 export type ExtractRequest = { type: "EXTRACT_PROFILE" };
 export type ExtractResponse =
-  | { ok: true; profile: CapturedProfile }
+  | { ok: true; profile: CapturedProfile; notes?: string }
   | { ok: false; error: string };

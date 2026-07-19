@@ -89,7 +89,8 @@ export function Popup() {
         p.experience ? "experience ✓" : "experience —",
         `${p.posts.length} post${p.posts.length === 1 ? "" : "s"}`,
       ];
-      setCaptured(`Read: ${parts.join(" · ")}`);
+      const summary = `Read: ${parts.join(" · ")}`;
+      setCaptured(res.notes ? `${summary}\n${res.notes}` : summary);
 
       setStage("capturing");
       const { id } = await capture(res.profile);
@@ -162,7 +163,11 @@ export function Popup() {
         {phase === "working" ? "Working…" : "Analyze this profile"}
       </button>
       {phase === "working" && <div className="stage muted">{stage}</div>}
-      {captured && <div className="stage muted">{captured}</div>}
+      {captured && (
+        <div className="stage muted" style={{ whiteSpace: "pre-wrap" }}>
+          {captured}
+        </div>
+      )}
       {phase === "error" && <div className="err">{error}</div>}
 
       {brief && <Brief brief={brief} />}
