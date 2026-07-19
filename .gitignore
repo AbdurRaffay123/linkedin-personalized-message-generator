@@ -10,6 +10,7 @@ venv/
 *.db
 .env
 .env.local
+.devkey.txt
 
 # OS / editor
 .DS_Store
