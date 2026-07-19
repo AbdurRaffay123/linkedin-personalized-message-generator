@@ -61,6 +61,24 @@ function nameFromTitle(): string {
   return t;
 }
 
+// Section headings LinkedIn uses as the page <h1>/<title> on profile subpages
+// (e.g. /recent-activity/all shows "Activity"). These are NOT the person's name.
+const SECTION_LABELS = new Set([
+  "activity",
+  "posts",
+  "featured",
+  "about",
+  "experience",
+  "education",
+  "skills",
+  "recommendations",
+  "people also viewed",
+]);
+
+function isSectionLabel(s: string): boolean {
+  return SECTION_LABELS.has(s.trim().toLowerCase());
+}
+
 function extractName(): string {
   // 1) Preferred: the profile intro heading, across known layout variants.
   const bySelector = firstText([
@@ -69,14 +87,23 @@ function extractName(): string {
     "section.artdeco-card h1",
     "h1",
   ]);
-  if (bySelector) return bySelector;
-  // 2) Any non-empty <h1> anywhere on the page.
+  if (bySelector && !isSectionLabel(bySelector)) return bySelector;
+  // 2) Any non-empty <h1> that isn't a section label ("Activity", "Posts"…).
   for (const h of Array.from(document.querySelectorAll("h1"))) {
     const t = text(h);
-    if (t) return t;
+    if (t && !isSectionLabel(t)) return t;
   }
   // 3) Last resort: parse the tab title.
-  return nameFromTitle();
+  const fromTitle = nameFromTitle();
+  return isSectionLabel(fromTitle) ? "" : fromTitle;
+}
+
+/** The profile slug ("meetshahbazpk") — a stable fallback identity used when a
+ *  subpage (activity feed) doesn't expose the person's real name. The URL-keyed
+ *  merge later replaces it with the real name from the main profile capture. */
+function slugName(): string {
+  const m = location.pathname.match(/\/in\/([^/]+)/);
+  return m ? decodeURIComponent(m[1]) : "";
 }
 
 function extractHeadline(): string {
@@ -204,7 +231,10 @@ function canonicalProfileUrl(): string {
 }
 
 function extractProfile(): CapturedProfile {
-  const full_name = extractName();
+  // Fall back to the URL slug on subpages (activity feed) where the real name
+  // isn't exposed — capture still succeeds and merges by URL into the main
+  // profile's prospect, which supplies the proper "First Last" name.
+  const full_name = extractName() || slugName();
   if (!full_name) {
     // Surface a compact diagnostic so we can tune selectors without the console.
     const h1s = document.querySelectorAll("h1").length;

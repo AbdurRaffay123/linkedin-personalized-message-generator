@@ -103,7 +103,14 @@ def capture(
 
     if existing is not None:
         # Fill blanks only — a posts-page capture must not wipe About/Experience.
-        existing.full_name = payload.full_name or existing.full_name
+        # Name: prefer a real "First Last" over a slug/section-label placeholder,
+        # but never downgrade a good name to a placeholder.
+        new_name = (payload.full_name or "").strip()
+        cur_name = (existing.full_name or "").strip()
+        if new_name and (
+            not cur_name or (" " in new_name and " " not in cur_name)
+        ):
+            existing.full_name = new_name
         existing.headline = payload.headline or existing.headline
         existing.about = payload.about or existing.about
         existing.experience = payload.experience or existing.experience
