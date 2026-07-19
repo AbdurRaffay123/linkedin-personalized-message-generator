@@ -75,7 +75,14 @@ def capture(
     db: Session = Depends(get_db),
     user: User = Depends(limit_capture),
 ) -> Prospect:
-    """Passive extension posts derived fields only. No raw HTML stored."""
+    """Passive extension posts derived fields only. No raw HTML stored.
+
+    Captures of the same person MERGE (matched by canonical linkedin_url):
+    LinkedIn keeps About/Experience on the main profile and posts on the
+    activity feed — two different pages — so the extension captures each page
+    separately and we combine them into one prospect. Non-empty fields fill in
+    blanks (never overwrite good data with null); new posts are appended.
+    """
     company = None
     if payload.company is not None:
         company = db.scalar(select(Company).where(Company.name == payload.company.name))
@@ -83,6 +90,38 @@ def capture(
             company = Company(name=payload.company.name, domain=payload.company.domain)
             db.add(company)
             db.flush()
+
+    # Merge into an existing prospect for this user with the same profile URL.
+    existing = None
+    if payload.linkedin_url:
+        existing = db.scalar(
+            select(Prospect).where(
+                Prospect.user_id == user.id,
+                Prospect.linkedin_url == payload.linkedin_url,
+            )
+        )
+
+    if existing is not None:
+        # Fill blanks only — a posts-page capture must not wipe About/Experience.
+        existing.full_name = payload.full_name or existing.full_name
+        existing.headline = payload.headline or existing.headline
+        existing.about = payload.about or existing.about
+        existing.experience = payload.experience or existing.experience
+        existing.education = payload.education or existing.education
+        existing.skills = payload.skills or existing.skills
+        if company is not None:
+            existing.company_id = company.id
+        # Append only genuinely new posts (dedupe by content).
+        seen = {p.content for p in existing.posts}
+        for p in payload.posts:
+            if p.content not in seen:
+                existing.posts.append(
+                    Post(content=p.content, url=p.url, engagement=p.engagement, posted_at=p.posted_at)
+                )
+                seen.add(p.content)
+        db.commit()
+        db.refresh(existing)
+        return existing
 
     prospect = Prospect(
         user_id=user.id,

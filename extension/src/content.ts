@@ -193,6 +193,16 @@ function postsDiagnostic(): string {
   return `[posts-diag] path=${location.pathname} ${hits}`;
 }
 
+/** Canonical profile URL — the same identity whether the user is on the main
+ *  profile (/in/slug) or a subpage (/in/slug/recent-activity/all). Lets the
+ *  backend merge an about/experience capture with a posts capture of the same
+ *  person instead of creating two prospects. */
+function canonicalProfileUrl(): string {
+  const m = location.pathname.match(/\/in\/([^/]+)/);
+  if (m) return `https://www.linkedin.com/in/${m[1]}/`;
+  return location.href.split("?")[0];
+}
+
 function extractProfile(): CapturedProfile {
   const full_name = extractName();
   if (!full_name) {
@@ -210,7 +220,7 @@ function extractProfile(): CapturedProfile {
     full_name,
     headline: extractHeadline() || null,
     about: extractAbout() || null,
-    linkedin_url: location.href.split("?")[0],
+    linkedin_url: canonicalProfileUrl(),
     company: extractCompany(),
     experience: extractExperience() || null,
     education: extractEducation() || null,
