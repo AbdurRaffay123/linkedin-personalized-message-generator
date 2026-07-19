@@ -19,16 +19,31 @@ async function extractFromActiveTab(): Promise<ExtractResponse> {
       error: "Open a LinkedIn profile (linkedin.com/in/…), then click Analyze.",
     };
   }
-  try {
-    return (await chrome.tabs.sendMessage(tab.id, {
+  const tabId = tab.id;
+  const ask = () =>
+    chrome.tabs.sendMessage(tabId, {
       type: "EXTRACT_PROFILE",
-    })) as ExtractResponse;
+    }) as Promise<ExtractResponse>;
+
+  try {
+    return await ask();
   } catch {
-    return {
-      ok: false,
-      error:
-        "Couldn't reach the page. Reload the LinkedIn profile tab and try again.",
-    };
+    // The declared content script isn't on this tab (it was open before the
+    // extension loaded, or was just reloaded). Inject it on demand and retry —
+    // so the user never has to manually reload the LinkedIn tab.
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: ["content.js"],
+      });
+      return await ask();
+    } catch {
+      return {
+        ok: false,
+        error:
+          "Couldn't reach the page. Reload the LinkedIn profile tab and try again.",
+      };
+    }
   }
 }
 

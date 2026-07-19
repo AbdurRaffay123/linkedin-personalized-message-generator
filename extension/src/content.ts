@@ -48,8 +48,35 @@ function sectionTextByHeading(titles: string[], maxLen = 2000): string {
   return body.slice(0, maxLen);
 }
 
+/** Derive the person's name from the page <title>. LinkedIn titles look like
+ *  "(3) Jane Doe | LinkedIn" or "Jane Doe - Senior PM at Acme | LinkedIn".
+ *  A resilient last resort when class names / h1 structure change. */
+function nameFromTitle(): string {
+  let t = document.title || "";
+  t = t.replace(/^\(\d+\+?\)\s*/, ""); // strip unread-count badge "(3) "
+  t = t.split("|")[0]; // drop " | LinkedIn"
+  t = t.split(" - ")[0]; // drop " - <headline>"
+  t = t.trim();
+  if (/^linkedin$/i.test(t)) return "";
+  return t;
+}
+
 function extractName(): string {
-  return firstText(["main h1", "h1.text-heading-xlarge", "h1"]);
+  // 1) Preferred: the profile intro heading, across known layout variants.
+  const bySelector = firstText([
+    "main h1",
+    "h1.text-heading-xlarge",
+    "section.artdeco-card h1",
+    "h1",
+  ]);
+  if (bySelector) return bySelector;
+  // 2) Any non-empty <h1> anywhere on the page.
+  for (const h of Array.from(document.querySelectorAll("h1"))) {
+    const t = text(h);
+    if (t) return t;
+  }
+  // 3) Last resort: parse the tab title.
+  return nameFromTitle();
 }
 
 function extractHeadline(): string {
@@ -131,8 +158,14 @@ function extractPosts(limit = 5): CapturedPost[] {
 function extractProfile(): CapturedProfile {
   const full_name = extractName();
   if (!full_name) {
+    // Surface a compact diagnostic so we can tune selectors without the console.
+    const h1s = document.querySelectorAll("h1").length;
+    const firstH1 = text(document.querySelector("h1")).slice(0, 40);
     throw new Error(
-      "Couldn't read a profile here. Open a LinkedIn profile (linkedin.com/in/…) and try again.",
+      "Couldn't read a profile here. Make sure you're on a linkedin.com/in/… " +
+        "page that has finished loading, then try again.\n" +
+        `[diag] url=${location.pathname} title="${document.title.slice(0, 60)}" ` +
+        `h1s=${h1s} firstH1="${firstH1}"`,
     );
   }
   return {
