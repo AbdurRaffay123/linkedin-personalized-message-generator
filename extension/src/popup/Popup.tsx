@@ -55,6 +55,7 @@ export function Popup() {
   const [analysisId, setAnalysisId] = useState<number | null>(null);
   const [draft, setDraft] = useState<string>("");
   const [drafting, setDrafting] = useState(false);
+  const [captured, setCaptured] = useState<string>("");
 
   // Settings: backend URL + API key, persisted to chrome.storage (no console).
   const [showSettings, setShowSettings] = useState(false);
@@ -74,10 +75,21 @@ export function Popup() {
     setError("");
     setBrief(null);
     setDraft("");
+    setCaptured("");
     try {
       setStage("reading profile");
       const res = await extractFromActiveTab();
       if (!res.ok) throw new Error(res.error);
+
+      // Show exactly what the page yielded — makes thin captures (e.g. no posts)
+      // obvious so the user can scroll the Activity feed and re-run.
+      const p = res.profile;
+      const parts = [
+        p.about ? "about ✓" : "about —",
+        p.experience ? "experience ✓" : "experience —",
+        `${p.posts.length} post${p.posts.length === 1 ? "" : "s"}`,
+      ];
+      setCaptured(`Read: ${parts.join(" · ")}`);
 
       setStage("capturing");
       const { id } = await capture(res.profile);
@@ -150,6 +162,7 @@ export function Popup() {
         {phase === "working" ? "Working…" : "Analyze this profile"}
       </button>
       {phase === "working" && <div className="stage muted">{stage}</div>}
+      {captured && <div className="stage muted">{captured}</div>}
       {phase === "error" && <div className="err">{error}</div>}
 
       {brief && <Brief brief={brief} />}

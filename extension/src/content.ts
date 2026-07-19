@@ -124,33 +124,41 @@ function extractCompany(): { name: string } | null {
   return name ? { name } : null;
 }
 
-function extractPosts(limit = 5): CapturedPost[] {
-  // Only posts already RENDERED on the page — we never scroll or navigate. On a
-  // profile view the "Activity" section shows a few recent posts; to capture more,
-  // the user can open/scroll their activity before clicking Analyze (still their
-  // action, never ours). Posts are the strongest signal of mindset & pain.
-  const activity = Array.from(document.querySelectorAll("h2, h3"))
-    .find((h) => text(h).toLowerCase() === "activity")
-    ?.closest("section");
-  const roots: ParentNode[] = activity ? [activity, document] : [document];
+function extractPosts(limit = 8): CapturedPost[] {
+  // Only posts already RENDERED on the page — we never scroll or navigate. The
+  // profile "Activity" card shows just 1–2 recent posts; for real coverage the
+  // user should open the person's Activity/Posts feed and scroll a little before
+  // clicking Analyze (their action, never ours). Posts are the strongest signal
+  // of mindset & pain, so we cast a wide net across LinkedIn's post-text markup.
+  const POST_TEXT_SELECTORS = [
+    ".feed-shared-update-v2 .update-components-text",
+    ".update-components-update-v2__commentary",
+    ".feed-shared-inline-show-more-text",
+    ".feed-shared-update-v2 .break-words",
+    "[data-urn*='activity'] .update-components-text",
+    ".update-components-text",
+  ].join(", ");
 
   const seen = new Set<string>();
   const posts: CapturedPost[] = [];
-  for (const root of roots) {
-    const nodes = root.querySelectorAll(
-      ".feed-shared-update-v2 .update-components-text, " +
-        ".feed-shared-update-v2 .break-words, " +
-        "[data-urn*='activity'] .update-components-text, " +
-        ".update-components-text",
-    );
-    for (const node of Array.from(nodes)) {
-      const content = text(node);
-      if (content && content.length > 15 && !seen.has(content)) {
-        seen.add(content);
-        posts.push({ content });
-        if (posts.length >= limit) return posts;
+  for (const node of Array.from(document.querySelectorAll(POST_TEXT_SELECTORS))) {
+    // Skip nodes nested inside an already-captured post (avoids duplicates from
+    // overlapping selectors matching parent + child).
+    const content = text(node);
+    if (!content || content.length <= 20) continue;
+    // Collapse near-duplicates: a truncated "…more" copy of a longer capture.
+    if (seen.has(content)) continue;
+    let dup = false;
+    for (const prev of seen) {
+      if (prev.includes(content) || content.includes(prev)) {
+        dup = true;
+        break;
       }
     }
+    if (dup) continue;
+    seen.add(content);
+    posts.push({ content });
+    if (posts.length >= limit) break;
   }
   return posts;
 }
